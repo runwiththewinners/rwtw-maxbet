@@ -15,11 +15,23 @@ export default function AdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Compress image client-side to stay under Vercel's body limit
+    const img = new window.Image();
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      setImagePreview(result);
-      setImageBase64(result);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxW = 800;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.7);
+        setImagePreview(compressed);
+        setImageBase64(compressed);
+      };
+      img.src = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
