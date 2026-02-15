@@ -88,7 +88,6 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
 
   const handleAdminDelete = async () => {
     if (!adminSecret) { setAdminStatus("Enter admin secret"); return; }
-    if (!confirm("Delete today's play?")) return;
     setAdminLoading(true);
     setAdminStatus(null);
     try {
