@@ -187,9 +187,54 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
+  // Recent purchase toast
+  const [toast, setToast] = useState<string | null>(null);
+  const [toastVisible, setToastVisible] = useState(false);
+
+  useEffect(() => {
+    if (!play || hasAccess) return;
+
+    const names = [
+      "Alex M.", "Jordan R.", "Mike T.", "Chris B.", "Tyler S.",
+      "Jake W.", "Ryan P.", "Matt D.", "Brandon L.", "Kevin H.",
+      "Derek C.", "Austin F.", "Zach G.", "Nick E.", "Marcus J.",
+      "Darius K.", "Trevor A.", "Sean O.", "Dylan V.", "Cameron N.",
+    ];
+    const times = ["just now", "1 min ago", "2 min ago", "3 min ago", "30 sec ago"];
+
+    const showToast = () => {
+      const name = names[Math.floor(Math.random() * names.length)];
+      const time = times[Math.floor(Math.random() * times.length)];
+      setToast(`${name} unlocked this ${time}`);
+      setToastVisible(true);
+      setTimeout(() => setToastVisible(false), 4000);
+    };
+
+    // First toast after 8-15 seconds
+    const firstDelay = setTimeout(showToast, (Math.random() * 7000) + 8000);
+
+    // Recurring toasts every 20-45 seconds
+    const interval = setInterval(() => {
+      showToast();
+    }, (Math.random() * 25000) + 20000);
+
+    return () => {
+      clearTimeout(firstDelay);
+      clearInterval(interval);
+    };
+  }, [play, hasAccess]);
+
   return (
     <>
       <style>{styles}</style>
+
+      {/* Purchase toast */}
+      {toast && (
+        <div className={`purchase-toast${toastVisible ? " show" : ""}`}>
+          <span className="toast-icon">🔓</span>
+          <span className="toast-text">{toast}</span>
+        </div>
+      )}
       <div className="mbp-wrap">
         <div className="mbp-content">
           {/* Header */}
@@ -692,6 +737,22 @@ const styles = `
 /* === Animations === */
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+
+/* === Purchase Toast === */
+.purchase-toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px;border-radius:12px;
+  background:var(--card-bg);border:1px solid var(--border);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 8px 32px rgba(0,0,0,.2);
+  font-size:13px;color:var(--txt);white-space:nowrap;
+  opacity:0;transition:all .5s cubic-bezier(.16,1,.3,1);z-index:100;
+  pointer-events:none;
+}
+.purchase-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast-icon{font-size:16px}
+.toast-text{font-weight:500}
 
 /* === Responsive === */
 @media(max-width:600px){
