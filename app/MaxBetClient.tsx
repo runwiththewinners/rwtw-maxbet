@@ -371,11 +371,9 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                     {adminLoading ? "Uploading..." : "Upload Play"}
                   </button>
 
-                  {play && (
-                    <button className="admin-delete-btn" onClick={handleAdminDelete} disabled={adminLoading}>
-                      {adminLoading ? "Deleting..." : "Delete Current Play"}
-                    </button>
-                  )}
+                  <button className="admin-delete-btn" onClick={handleAdminDelete} disabled={adminLoading}>
+                    {adminLoading ? "Deleting..." : "Delete Current Play"}
+                  </button>
 
                   {adminStatus && (
                     <p className={`admin-status${adminStatus.startsWith("Error") || adminStatus.includes("failed") ? " err" : ""}`}>
