@@ -10,6 +10,7 @@ export default function AdminPage() {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,6 +68,35 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const handleDelete = async () => {
+    if (!secret) {
+      setStatus("Enter admin secret first");
+      return;
+    }
+    if (!confirm("Are you sure you want to delete today's play?")) return;
+
+    setDeleting(true);
+    setStatus(null);
+
+    try {
+      const res = await fetch("/api/play", {
+        method: "DELETE",
+        headers: { "x-admin-secret": secret },
+      });
+      if (res.ok) {
+        setStatus("Play deleted successfully");
+        setImagePreview(null);
+        setImageBase64(null);
+      } else {
+        const data = await res.json();
+        setStatus(`Error: ${data.error}`);
+      }
+    } catch {
+      setStatus("Failed to delete");
+    }
+    setDeleting(false);
+  };
+
   return (
     <>
       <style>{`
@@ -84,6 +114,10 @@ export default function AdminPage() {
         .submit-btn{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#e8522a,#c23a1a);color:#fff;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:transform .2s}
         .submit-btn:hover{transform:scale(1.02)}
         .submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .delete-btn{width:100%;padding:14px;border-radius:10px;border:1px solid rgba(239,68,68,.3);background:transparent;color:#ef4444;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:12px}
+        .delete-btn:hover{background:rgba(239,68,68,.1);transform:scale(1.02)}
+        .delete-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .divider{border:none;border-top:1px solid var(--border);margin:24px 0}
         .status{margin-top:14px;font-size:13px;text-align:center;color:#4ade80}
         .status.err{color:#ef4444}
       `}</style>
@@ -135,8 +169,18 @@ export default function AdminPage() {
           {loading ? "Uploading..." : "Upload Play"}
         </button>
 
+        <hr className="divider" />
+
+        <button
+          className="delete-btn"
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? "Deleting..." : "Delete Current Play"}
+        </button>
+
         {status && (
-          <p className={`status${status.startsWith("Error") ? " err" : ""}`}>
+          <p className={`status${status.startsWith("Error") || status.startsWith("Failed") ? " err" : ""}`}>
             {status}
           </p>
         )}

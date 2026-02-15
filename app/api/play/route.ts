@@ -41,7 +41,25 @@ export async function GET() {
   }
 }
 
-// POST — admin uploads new play + sends push notification
+// DELETE — admin removes current play
+export async function DELETE(req: NextRequest) {
+  const secret = req.headers.get("x-admin-secret");
+  if (secret !== process.env.ADMIN_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await fetch(REDIS_URL + "/del/maxbet-play", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + REDIS_TOKEN },
+    });
+    console.log("[MAXBET] Play deleted");
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error("[MAXBET] Delete error:", e?.message || e);
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  }
+}
 export async function POST(req: NextRequest) {
   const secret = req.headers.get("x-admin-secret");
   if (secret !== process.env.ADMIN_SECRET) {
@@ -86,8 +104,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error("[MAXBET] Save error:", e);
-    return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+  } catch (e: any) {
+    console.error("[MAXBET] Save error:", e?.message || e);
+    console.error("[MAXBET] Stack:", e?.stack);
+    return NextResponse.json({ error: "Failed to save: " + (e?.message || "unknown") }, { status: 500 });
   }
 }
