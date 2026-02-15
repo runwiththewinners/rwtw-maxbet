@@ -28,10 +28,13 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl }: 
       fetch("/api/play")
         .then((r) => r.json())
         .then((data) => {
-          setPlay(data.play);
+          setPlay(data.play || null);
           setLoading(false);
         })
-        .catch(() => setLoading(false));
+        .catch(() => {
+          setPlay(null);
+          setLoading(false);
+        });
     };
 
     fetchPlay();
