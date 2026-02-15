@@ -47,6 +47,8 @@ export async function POST(req: Request) {
 
 {
   "title": "Short title for this play (e.g. 'Duke -9.5' or 'Celtics ML')",
+  "matchup": "The matchup (e.g. 'Clemson @ Duke', 'Lakers vs Celtics')",
+  "betType": "The bet type (e.g. 'Alternate Spread', 'Moneyline', 'Over/Under', 'Player Prop')",
   "odds": "American odds as a string (e.g. '-110', '+150', '-138'). For parlays, use the total parlay odds.",
   "gameTime": "Game time if visible, in format 'YYYY-MM-DDTHH:MM' for datetime-local input. If not clearly visible, leave empty string.",
   "description": "Write a 2-3 sentence analysis of why this is a strong play. Mention the matchup, the bet type, the odds value, and any angle that makes this compelling. Write it in a confident, insider tone like a premium sports betting analyst would. Start with the key stat or angle."
@@ -56,6 +58,8 @@ Important:
 - For the odds, extract the American odds number only (e.g. -138, +150)
 - For parlays, use the combined parlay odds
 - For the title, be concise — just the team/player and the line
+- For the matchup, use "Away @ Home" format
+- For the betType, be specific (Alternate Spread, Moneyline, Player Points, etc.)
 - For the description, make it sound like an expert breakdown, not generic
 - Return ONLY valid JSON, no backticks or explanation`,
               },

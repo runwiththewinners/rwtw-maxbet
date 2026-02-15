@@ -10,12 +10,14 @@ interface Props {
 }
 
 interface PlayData {
-  imageBase64: string;
+  imageBase64?: string;
   gameTime: string;
   title: string;
   updatedAt: string;
   description?: string;
   odds?: string;
+  matchup?: string;
+  betType?: string;
 }
 
 export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, isAdmin }: Props) {
@@ -63,6 +65,8 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   const [adminSecret, setAdminSecret] = useState("");
   const [adminDescription, setAdminDescription] = useState("");
   const [adminOdds, setAdminOdds] = useState("");
+  const [adminMatchup, setAdminMatchup] = useState("");
+  const [adminBetType, setAdminBetType] = useState("");
   const [adminStatus, setAdminStatus] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -86,6 +90,8 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
         if (data.odds) setAdminOdds(data.odds);
         if (data.gameTime) setAdminGameTime(data.gameTime);
         if (data.description) setAdminDescription(data.description);
+        if (data.matchup) setAdminMatchup(data.matchup);
+        if (data.betType) setAdminBetType(data.betType);
         setAdminStatus("Scan complete — review and post!");
       } else {
         const err = await res.json();
@@ -119,8 +125,8 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   };
 
   const handleAdminUpload = async () => {
-    if (!adminImage || !adminGameTime || !adminSecret) {
-      setAdminStatus("Missing required fields");
+    if (!adminTitle || !adminGameTime || !adminSecret) {
+      setAdminStatus("Missing required fields (pick + game time)");
       return;
     }
     setAdminLoading(true);
@@ -129,7 +135,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
       const res = await fetch("/api/play", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret },
-        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle, description: adminDescription, odds: adminOdds }),
+        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle, description: adminDescription, odds: adminOdds, matchup: adminMatchup, betType: adminBetType }),
       });
       if (res.ok) {
         setAdminStatus("Play uploaded!");
@@ -369,16 +375,21 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                 </div>
               </div>
             ) : hasAccess ? (
-              /* UNLOCKED */
+              /* UNLOCKED — CARD STYLE */
               <div className="play-unlocked">
                 <div className="unlocked-header">
                   <span className="unlocked-badge">🔓 UNLOCKED</span>
                 </div>
-                <img
-                  src={play.imageBase64}
-                  alt="Max Bet Play"
-                  className="play-image"
-                />
+                <div className="pick-card">
+                  {play.matchup && <div className="pick-matchup">{play.matchup}</div>}
+                  <div className="pick-row">
+                    <div>
+                      <div className="pick-name">{play.title}</div>
+                      {play.betType && <div className="pick-type">{play.betType}</div>}
+                    </div>
+                    {play.odds && <div className={`pick-odds${parseInt(play.odds) < 0 ? " negative" : ""}`}>{play.odds}</div>}
+                  </div>
+                </div>
                 {play.description && (
                   <div className="play-breakdown">
                     <h4 className="breakdown-title">Why We Love This Play</h4>
@@ -389,13 +400,15 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
             ) : (
               /* LOCKED — FOMO MODE */
               <div className="play-locked">
-                <div className="blur-container">
-                  <img
-                    src={play.imageBase64}
-                    alt=""
-                    className="play-image-blurred"
-                  />
-                  <div className="blur-overlay" />
+                <div className="pick-card pick-card-locked">
+                  <div className="pick-matchup blurred">Matchup Hidden</div>
+                  <div className="pick-row">
+                    <div>
+                      <div className="pick-name blurred">Pick Hidden</div>
+                      <div className="pick-type blurred">Bet Type</div>
+                    </div>
+                    <div className="pick-odds blurred">-000</div>
+                  </div>
                 </div>
 
                 <div className="lock-content">
@@ -538,7 +551,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   </div>
 
                   <div className="admin-field">
-                    <label>Bet Slip Image</label>
+                    <label>Scan Bet Slip (optional — auto-fills fields)</label>
                     <input type="file" accept="image/*" onChange={handleAdminImage} />
                     {adminImagePreview && <img src={adminImagePreview} alt="Preview" className="admin-preview" />}
                   </div>
@@ -552,8 +565,18 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   <div className="admin-divider" />
 
                   <div className="admin-field">
-                    <label>Play Title</label>
-                    <input type="text" value={adminTitle} onChange={(e) => setAdminTitle(e.target.value)} />
+                    <label>Pick (e.g. Duke -9.5)</label>
+                    <input type="text" value={adminTitle} onChange={(e) => setAdminTitle(e.target.value)} placeholder="Duke -9.5" />
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Matchup (e.g. Clemson @ Duke)</label>
+                    <input type="text" value={adminMatchup} onChange={(e) => setAdminMatchup(e.target.value)} placeholder="Clemson @ Duke" />
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Bet Type (e.g. Alternate Spread, Moneyline)</label>
+                    <input type="text" value={adminBetType} onChange={(e) => setAdminBetType(e.target.value)} placeholder="Alternate Spread" />
                   </div>
 
                   <div className="admin-field">
@@ -973,6 +996,17 @@ const styles = `
   resize:vertical;line-height:1.6;
 }
 .admin-textarea:focus{outline:none;border-color:var(--gold)}
+/* === Pick Card === */
+.pick-card{padding:20px;border-bottom:1px solid var(--border)}
+.pick-card-locked{position:relative}
+.pick-matchup{font-size:12px;color:var(--blue);font-weight:600;letter-spacing:.5px;margin-bottom:10px}
+.pick-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pick-name{font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:var(--txt);line-height:1.2}
+.pick-type{font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-top:4px}
+.pick-odds{font-family:'Oswald',sans-serif;font-size:24px;font-weight:700;color:#4ade80;white-space:nowrap}
+.pick-odds.negative{color:var(--gold)}
+.blurred{filter:blur(10px);user-select:none}
+
 .play-breakdown{
   padding:20px;border-top:1px solid var(--border);
 }

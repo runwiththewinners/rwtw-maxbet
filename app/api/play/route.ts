@@ -68,21 +68,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { imageBase64, gameTime, title, description, odds } = body;
+    const { imageBase64, gameTime, title, description, odds, matchup, betType } = body;
 
-    if (!imageBase64 || !gameTime) {
+    if (!gameTime || !title) {
       return NextResponse.json(
-        { error: "imageBase64 and gameTime are required" },
+        { error: "title and gameTime are required" },
         { status: 400 }
       );
     }
 
     const playData = {
-      imageBase64,
+      imageBase64: imageBase64 || "",
       gameTime,
       title: title || "Max Bet Play of the Day",
       description: description || "",
       odds: odds || "",
+      matchup: matchup || "",
+      betType: betType || "",
       updatedAt: new Date().toISOString(),
     };
 
