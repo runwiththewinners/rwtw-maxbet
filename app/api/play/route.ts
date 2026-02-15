@@ -1,38 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import Whop from "@whop/sdk";
 
-const DATA_FILE = path.join(process.cwd(), "public", "play-data.json");
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL!;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN!;
 
 const whopsdk = new Whop({
   apiKey: process.env.WHOP_API_KEY,
   appID: process.env.NEXT_PUBLIC_WHOP_APP_ID,
 });
 
-interface PlayData {
-  imageBase64: string;
-  gameTime: string; // ISO string
-  title: string;
-  updatedAt: string;
+async function redisGet(key: string) {
+  const res = await fetch(`${REDIS_URL}/get/${key}`, {
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    cache: "no-store",
+  });
+  const data = await res.json();
+  return data.result;
 }
 
-async function getPlayData(): Promise<PlayData | null> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+async function redisSet(key: string, value: string) {
+  const res = await fetch(`${REDIS_URL}/set/${key}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    body: value,
+  });
+  return res.ok;
 }
 
 // GET — return current play data
 export async function GET() {
-  const play = await getPlayData();
-  if (!play) {
+  try {
+    const raw = await redisGet("maxbet-play");
+    if (!raw) {
+      return NextResponse.json({ play: null });
+    }
+    const play = JSON.parse(raw);
+    return NextResponse.json({ play });
+  } catch {
     return NextResponse.json({ play: null });
   }
-  return NextResponse.json({ play });
 }
 
 // POST — admin uploads new play + sends push notification
@@ -53,14 +59,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const playData: PlayData = {
+    const playData = {
       imageBase64,
       gameTime,
       title: title || "Max Bet Play of the Day",
       updatedAt: new Date().toISOString(),
     };
 
-    await fs.writeFile(DATA_FILE, JSON.stringify(playData), "utf-8");
+    await redisSet("maxbet-play", JSON.stringify(playData));
 
     // Send push notification to all users in the experience
     const experienceId = process.env.WHOP_EXPERIENCE_ID;
@@ -81,6 +87,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
+    console.error("[MAXBET] Save error:", e);
     return NextResponse.json({ error: "Failed to save" }, { status: 500 });
   }
 }
