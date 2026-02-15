@@ -94,8 +94,8 @@ export async function POST(req: NextRequest) {
       try {
         await whopsdk.notifications.create({
           experience_id: experienceId,
-          title: "🔥 Max Bet Play of the Day is LIVE",
-          subtitle: playData.title,
+          title: "🔥 MAX BET PLAY OF THE DAY JUST DROPPED!",
+          subtitle: "Today's highest-conviction pick is LIVE",
           content:
             "Today's highest-conviction pick just dropped. Unlock it before game time!",
         });
