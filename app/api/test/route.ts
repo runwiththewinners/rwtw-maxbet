@@ -1,4 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    return NextResponse.json({
+      error: "Missing Redis env vars",
+      hasUrl: !!url,
+      hasToken: !!token,
+    });
+  }
+
+  try {
+    const setRes = await fetch(url + "/set/test-key/hello", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+    });
+    const setData = await setRes.json();
+
+    const getRes = await fetch(url + "/get/test-key", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const getData = await getRes.json();
+
+    return NextResponse.json({
+      redis: "connected",
+      set: setData,
+      get: getData,
+    });
+  } catch (e) {
+    return NextResponse.json({
+      error: "Redis connection failed",
+    });
+  }
+}import { NextRequest, NextResponse } from "next/server";
 import Whop from "@whop/sdk";
 
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL!;
