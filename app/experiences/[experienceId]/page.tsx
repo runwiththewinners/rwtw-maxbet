@@ -22,6 +22,7 @@ export default async function ExperiencePage({
 
   let hasAccess = false;
   let authenticated = false;
+  let isAdmin = false;
 
   try {
     const result = await whopsdk.verifyUserToken(headersList, {
@@ -34,21 +35,32 @@ export default async function ExperiencePage({
     if (userId) {
       authenticated = true;
 
-      const checks = await Promise.all(
-        Object.entries(PRODUCTS).map(async ([key, prodId]) => {
-          try {
-            const response = await whopsdk.users.checkAccess(prodId, {
-              id: userId,
-            });
-            console.log(`[MAXBET] ${key}:`, JSON.stringify(response));
-            return response.has_access === true;
-          } catch {
-            return false;
-          }
-        })
-      );
+      // Check if user is admin of the experience
+      try {
+        const expAccess = await whopsdk.users.checkAccess(experienceId, { id: userId });
+        if (expAccess.access_level === "admin") {
+          isAdmin = true;
+          hasAccess = true;
+        }
+      } catch {}
 
-      hasAccess = checks.some((v) => v);
+      if (!hasAccess) {
+        const checks = await Promise.all(
+          Object.entries(PRODUCTS).map(async ([key, prodId]) => {
+            try {
+              const response = await whopsdk.users.checkAccess(prodId, {
+                id: userId,
+              });
+              console.log(`[MAXBET] ${key}:`, JSON.stringify(response));
+              return response.has_access === true;
+            } catch {
+              return false;
+            }
+          })
+        );
+
+        hasAccess = checks.some((v) => v);
+      }
     }
   } catch (e) {
     console.error("[MAXBET] Auth error:", e);
@@ -59,6 +71,7 @@ export default async function ExperiencePage({
       hasAccess={hasAccess}
       authenticated={authenticated}
       checkoutUrl={CHECKOUT_URL}
+      isAdmin={isAdmin}
     />
   );
 }

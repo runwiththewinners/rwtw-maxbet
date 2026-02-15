@@ -6,6 +6,7 @@ interface Props {
   hasAccess: boolean;
   authenticated: boolean;
   checkoutUrl: string;
+  isAdmin?: boolean;
 }
 
 interface PlayData {
@@ -15,12 +16,96 @@ interface PlayData {
   updatedAt: string;
 }
 
-export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl }: Props) {
+export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, isAdmin }: Props) {
   const [play, setPlay] = useState<PlayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, expired: false });
   const [purchaseCount] = useState(() => Math.floor(Math.random() * 30) + 45);
   const [viewerCount] = useState(() => Math.floor(Math.random() * 80) + 120);
+  const [adminAction, setAdminAction] = useState<string | null>(null);
+
+  // Admin: upload play
+  const [adminTitle, setAdminTitle] = useState("Max Bet Play of the Day");
+  const [adminGameTime, setAdminGameTime] = useState("");
+  const [adminImage, setAdminImage] = useState<string | null>(null);
+  const [adminImagePreview, setAdminImagePreview] = useState<string | null>(null);
+  const [adminSecret, setAdminSecret] = useState("");
+  const [adminStatus, setAdminStatus] = useState<string | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  const handleAdminImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new window.Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxW = 800;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.7);
+        setAdminImagePreview(compressed);
+        setAdminImage(compressed);
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAdminUpload = async () => {
+    if (!adminImage || !adminGameTime || !adminSecret) {
+      setAdminStatus("Missing required fields");
+      return;
+    }
+    setAdminLoading(true);
+    setAdminStatus(null);
+    try {
+      const res = await fetch("/api/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret },
+        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle }),
+      });
+      if (res.ok) {
+        setAdminStatus("Play uploaded!");
+        setAdminImage(null);
+        setAdminImagePreview(null);
+        // Refresh play data
+        const playRes = await fetch("/api/play");
+        const playData = await playRes.json();
+        setPlay(playData.play || null);
+      } else {
+        const data = await res.json();
+        setAdminStatus("Error: " + data.error);
+      }
+    } catch { setAdminStatus("Upload failed"); }
+    setAdminLoading(false);
+  };
+
+  const handleAdminDelete = async () => {
+    if (!adminSecret) { setAdminStatus("Enter admin secret"); return; }
+    if (!confirm("Delete today's play?")) return;
+    setAdminLoading(true);
+    setAdminStatus(null);
+    try {
+      const res = await fetch("/api/play", {
+        method: "DELETE",
+        headers: { "x-admin-secret": adminSecret },
+      });
+      if (res.ok) {
+        setAdminStatus("Play deleted");
+        setPlay(null);
+      } else {
+        const data = await res.json();
+        setAdminStatus("Error: " + data.error);
+      }
+    } catch { setAdminStatus("Delete failed"); }
+    setAdminLoading(false);
+  };
 
   // Fetch play data + auto-refresh every 30s
   useEffect(() => {
@@ -249,6 +334,56 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl }: 
               >
                 Join Premium — Starting at $29.99
               </a>
+            </div>
+          )}
+
+          {/* Admin Panel */}
+          {isAdmin && (
+            <div className="admin-panel">
+              <button className="admin-toggle" onClick={() => setShowAdmin(!showAdmin)}>
+                {showAdmin ? "▲ Hide Admin" : "⚙ Admin Controls"}
+              </button>
+
+              {showAdmin && (
+                <div className="admin-body">
+                  <div className="admin-field">
+                    <label>Admin Secret</label>
+                    <input type="password" value={adminSecret} onChange={(e) => setAdminSecret(e.target.value)} placeholder="Enter secret" />
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Play Title</label>
+                    <input type="text" value={adminTitle} onChange={(e) => setAdminTitle(e.target.value)} />
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Game Time (ET)</label>
+                    <input type="datetime-local" value={adminGameTime} onChange={(e) => setAdminGameTime(e.target.value)} />
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Bet Slip Image</label>
+                    <input type="file" accept="image/*" onChange={handleAdminImage} />
+                    {adminImagePreview && <img src={adminImagePreview} alt="Preview" className="admin-preview" />}
+                  </div>
+
+                  <button className="admin-upload-btn" onClick={handleAdminUpload} disabled={adminLoading}>
+                    {adminLoading ? "Uploading..." : "Upload Play"}
+                  </button>
+
+                  {play && (
+                    <button className="admin-delete-btn" onClick={handleAdminDelete} disabled={adminLoading}>
+                      {adminLoading ? "Deleting..." : "Delete Current Play"}
+                    </button>
+                  )}
+
+                  {adminStatus && (
+                    <p className={`admin-status${adminStatus.startsWith("Error") || adminStatus.includes("failed") ? " err" : ""}`}>
+                      {adminStatus}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -525,4 +660,38 @@ const styles = `
   .lock-content{padding:24px 18px}
   .unlock-btn{padding:14px 30px}
 }
+
+/* === Admin Panel === */
+.admin-panel{margin-top:24px;animation:fadeUp .6s ease both .4s}
+.admin-toggle{
+  width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--txt2);font-family:'Oswald',sans-serif;
+  font-size:13px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;
+  transition:all .2s;
+}
+.admin-toggle:hover{color:var(--txt);border-color:var(--gold)}
+.admin-body{margin-top:14px;padding:20px;border-radius:12px;border:1px solid var(--border);background:var(--card-bg)}
+.admin-field{margin-bottom:14px}
+.admin-field label{display:block;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--txt2);margin-bottom:5px}
+.admin-field input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--glass);color:var(--txt);font-family:inherit;font-size:13px}
+.admin-field input:focus{outline:none;border-color:var(--gold)}
+.admin-preview{max-width:100%;border-radius:8px;margin-top:8px}
+.admin-upload-btn{
+  width:100%;padding:12px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,var(--fire),#c23a1a);color:#fff;
+  font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:transform .2s;
+}
+.admin-upload-btn:hover{transform:scale(1.02)}
+.admin-upload-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.admin-delete-btn{
+  width:100%;padding:12px;border-radius:10px;margin-top:10px;
+  border:1px solid rgba(239,68,68,.3);background:transparent;color:#ef4444;
+  font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;
+}
+.admin-delete-btn:hover{background:rgba(239,68,68,.1);transform:scale(1.02)}
+.admin-delete-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.admin-status{margin-top:10px;font-size:12px;text-align:center;color:#4ade80}
+.admin-status.err{color:#ef4444}
 `;
