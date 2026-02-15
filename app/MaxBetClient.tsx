@@ -21,9 +21,38 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   const [play, setPlay] = useState<PlayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, expired: false });
-  const [purchaseCount] = useState(() => Math.floor(Math.random() * 30) + 45);
-  const [viewerCount] = useState(() => Math.floor(Math.random() * 80) + 120);
+  const [purchaseCount, setPurchaseCount] = useState(0);
+  const [viewerCount, setViewerCount] = useState(0);
   const [adminAction, setAdminAction] = useState<string | null>(null);
+
+  // Dynamic social proof: ramp up as game time approaches (4hr window typical)
+  useEffect(() => {
+    if (!play?.gameTime) return;
+
+    const calcCounts = () => {
+      const now = Date.now();
+      const game = new Date(play.gameTime).getTime();
+      const totalWindow = 4 * 60 * 60 * 1000; // assume 4hr window
+      const timeToGame = game - now;
+
+      // Progress from 0 (4hrs out) to 1 (game time), can exceed 1 after game starts
+      const progress = Math.max(0, Math.min(1, 1 - timeToGame / totalWindow));
+
+      // Viewers: 45-60 right when posted → 350+ at game time
+      const baseViewers = Math.floor(45 + progress * progress * 310);
+      const viewerJitter = Math.floor(Math.random() * 16) - 8;
+      setViewerCount(Math.max(30, baseViewers + viewerJitter));
+
+      // Purchases: 12-18 right when posted → 95+ at game time
+      const basePurchases = Math.floor(12 + progress * progress * 85);
+      const purchaseJitter = Math.floor(Math.random() * 5) - 2;
+      setPurchaseCount(Math.max(8, basePurchases + purchaseJitter));
+    };
+
+    calcCounts();
+    const interval = setInterval(calcCounts, 15000);
+    return () => clearInterval(interval);
+  }, [play?.gameTime, play?.updatedAt]);
 
   // Admin: upload play
   const [adminTitle, setAdminTitle] = useState("Max Bet Play of the Day");
