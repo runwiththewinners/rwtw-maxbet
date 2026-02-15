@@ -15,6 +15,7 @@ interface PlayData {
   title: string;
   updatedAt: string;
   description?: string;
+  odds?: string;
 }
 
 export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, isAdmin }: Props) {
@@ -61,9 +62,11 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   const [adminImagePreview, setAdminImagePreview] = useState<string | null>(null);
   const [adminSecret, setAdminSecret] = useState("");
   const [adminDescription, setAdminDescription] = useState("");
+  const [adminOdds, setAdminOdds] = useState("");
   const [adminStatus, setAdminStatus] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [betAmount, setBetAmount] = useState(100);
 
   const handleAdminImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,7 +102,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
       const res = await fetch("/api/play", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret },
-        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle, description: adminDescription }),
+        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle, description: adminDescription, odds: adminOdds }),
       });
       if (res.ok) {
         setAdminStatus("Play uploaded!");
@@ -186,6 +189,13 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   }, [play?.gameTime]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
+
+  const calcPayout = (bet: number, oddsStr: string) => {
+    const odds = parseInt(oddsStr);
+    if (isNaN(odds) || bet <= 0) return { profit: 0, total: 0 };
+    const profit = odds < 0 ? bet * (100 / Math.abs(odds)) : bet * (odds / 100);
+    return { profit: Math.round(profit * 100) / 100, total: Math.round((bet + profit) * 100) / 100 };
+  };
 
   // Recent purchase toast
   const [toast, setToast] = useState<string | null>(null);
@@ -401,6 +411,74 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
             )}
           </div>
 
+          {/* Payout Calculator */}
+          {play && play.odds && (
+            <div className="calc-card">
+              <div className="calc-header">
+                <span className="calc-title">Payout Calculator</span>
+                <span className="calc-subtitle">{hasAccess ? "See what you could win" : "Unlock to see full payout"}</span>
+              </div>
+              <div className="calc-body">
+                <div className="calc-odds-row">
+                  <span className="calc-odds-label">Odds</span>
+                  <span className={`calc-odds-value${hasAccess ? "" : " blurred"}`}>{play.odds}</span>
+                </div>
+                <div className="quick-bets">
+                  {[25, 50, 100, 250].map((amt) => (
+                    <button
+                      key={amt}
+                      className={`quick-bet${betAmount === amt ? " active" : ""}`}
+                      onClick={() => setBetAmount(amt)}
+                    >
+                      ${amt}
+                    </button>
+                  ))}
+                </div>
+                <div className="calc-input-wrap">
+                  <label className="calc-label">Your Bet</label>
+                  <div className="calc-input-row">
+                    <span className="calc-dollar">$</span>
+                    <input
+                      type="number"
+                      className="calc-input"
+                      value={betAmount}
+                      onChange={(e) => setBetAmount(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className={`calc-payout${hasAccess ? "" : " calc-payout-locked"}`}>
+                {hasAccess ? (
+                  <>
+                    <div className="payout-row">
+                      <span className="payout-label">Bet</span>
+                      <span className="payout-value">${betAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="payout-row">
+                      <span className="payout-label">Profit</span>
+                      <span className="payout-value">${calcPayout(betAmount, play.odds!).profit.toFixed(2)}</span>
+                    </div>
+                    <div className="payout-row payout-total-row">
+                      <span className="payout-label">Total Payout</span>
+                      <span className="payout-value payout-highlight">${calcPayout(betAmount, play.odds!).total.toFixed(2)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="payout-locked-content">
+                    <p className="payout-locked-text">
+                      Your <strong>${betAmount}</strong> bet could pay out...
+                    </p>
+                    <span className="payout-locked-amount">${calcPayout(betAmount, play.odds!).total.toFixed(2)}</span>
+                    <p className="payout-locked-sub">Unlock to see the pick and your exact payout</p>
+                    <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="payout-unlock-btn">
+                      Unlock Now — $49.99
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Bottom CTA for non-access */}
           {!hasAccess && play && (
             <div className="bottom-cta">
@@ -440,6 +518,11 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   <div className="admin-field">
                     <label>Game Time (ET)</label>
                     <input type="datetime-local" value={adminGameTime} onChange={(e) => setAdminGameTime(e.target.value)} />
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Odds (e.g. -110, +150)</label>
+                    <input type="text" value={adminOdds} onChange={(e) => setAdminOdds(e.target.value)} placeholder="-110" />
                   </div>
 
                   <div className="admin-field">
@@ -766,6 +849,73 @@ const styles = `
   .lock-content{padding:24px 18px}
   .unlock-btn{padding:14px 30px}
 }
+
+/* === Payout Calculator === */
+.calc-card{
+  border-radius:14px;border:1px solid var(--border);
+  background:var(--card-bg);overflow:hidden;margin-top:16px;
+  animation:fadeUp .6s ease .35s both;
+}
+.calc-header{
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.calc-title{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)}
+.calc-subtitle{font-size:11px;color:var(--txt3)}
+.calc-body{padding:16px 20px}
+.calc-odds-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-radius:10px;background:var(--glass);
+  border:1px solid var(--border);margin-bottom:14px;
+}
+.calc-odds-label{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt2)}
+.calc-odds-value{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:#4ade80}
+.calc-odds-value.blurred{filter:blur(8px);user-select:none}
+.quick-bets{display:flex;gap:8px;margin-bottom:14px}
+.quick-bet{
+  flex:1;padding:8px;border-radius:8px;
+  border:1px solid var(--border);background:var(--glass);
+  color:var(--txt2);font-family:'Oswald',sans-serif;font-size:13px;
+  font-weight:600;cursor:pointer;transition:all .2s;text-align:center;
+}
+.quick-bet:hover{border-color:var(--gold);color:var(--gold)}
+.quick-bet.active{border-color:var(--gold);background:rgba(212,168,67,.1);color:var(--gold)}
+.calc-input-wrap{margin-bottom:4px}
+.calc-label{display:block;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--txt2);margin-bottom:6px}
+.calc-input-row{display:flex;align-items:center;border-radius:10px;border:1px solid var(--border);background:var(--glass);overflow:hidden}
+.calc-dollar{padding:0 0 0 14px;font-family:'Oswald',sans-serif;font-size:18px;font-weight:600;color:var(--txt2)}
+.calc-input{
+  flex:1;padding:12px 14px 12px 6px;border:none;background:transparent;
+  color:var(--txt);font-family:'Oswald',sans-serif;font-size:18px;font-weight:600;
+  outline:none;
+}
+.calc-input::-webkit-inner-spin-button,.calc-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.calc-input[type=number]{-moz-appearance:textfield}
+.calc-payout{padding:16px 20px;border-top:1px solid var(--border);background:rgba(74,222,128,.03)}
+.payout-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.payout-row:last-child{margin-bottom:0}
+.payout-label{font-size:12px;color:var(--txt2);font-weight:500}
+.payout-value{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;color:var(--txt)}
+.payout-total-row{padding-top:8px;border-top:1px solid var(--border);margin-top:6px}
+.payout-highlight{font-size:22px;color:#4ade80}
+.calc-payout-locked{text-align:center;background:rgba(232,82,42,.03)}
+.payout-locked-content{padding:4px 0}
+.payout-locked-text{font-size:13px;color:var(--txt2);margin-bottom:6px}
+.payout-locked-text strong{color:var(--txt)}
+.payout-locked-amount{
+  display:block;font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;
+  color:#4ade80;filter:blur(8px);user-select:none;margin-bottom:8px;
+}
+.payout-locked-sub{font-size:11px;color:var(--txt3);margin-bottom:14px}
+.payout-unlock-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:10px 24px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,var(--fire),#c23a1a);
+  color:#fff;font-family:'Oswald',sans-serif;font-weight:600;
+  font-size:12px;letter-spacing:1.5px;text-transform:uppercase;
+  cursor:pointer;text-decoration:none;transition:transform .2s;
+}
+.payout-unlock-btn:hover{transform:scale(1.03)}
 
 /* === Admin Panel === */
 .admin-panel{margin-top:24px;animation:fadeUp .6s ease both .4s}
