@@ -375,21 +375,16 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                 </div>
               </div>
             ) : hasAccess ? (
-              /* UNLOCKED — CARD STYLE */
+              /* UNLOCKED — SHOW BET SLIP IMAGE */
               <div className="play-unlocked">
                 <div className="unlocked-header">
                   <span className="unlocked-badge">🔓 UNLOCKED</span>
                 </div>
-                <div className="pick-card">
-                  {play.matchup && <div className="pick-matchup">{play.matchup}</div>}
-                  <div className="pick-row">
-                    <div>
-                      <div className="pick-name">{play.title}</div>
-                      {play.betType && <div className="pick-type">{play.betType}</div>}
-                    </div>
-                    {play.odds && <div className={`pick-odds${parseInt(play.odds) < 0 ? " negative" : ""}`}>{play.odds}</div>}
+                {play.imageBase64 && (
+                  <div className="play-image-wrap">
+                    <img src={play.imageBase64} className="play-image" alt="Today's pick" />
                   </div>
-                </div>
+                )}
                 {play.description && (
                   <div className="play-breakdown">
                     <h4 className="breakdown-title">Why We Love This Play</h4>
@@ -400,23 +395,27 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
             ) : (
               /* LOCKED — FOMO MODE */
               <div className="play-locked">
-                <div className="pick-card pick-card-locked">
-                  <div className="pick-matchup blurred">Matchup Hidden</div>
-                  <div className="pick-row">
-                    <div>
-                      <div className="pick-name blurred">Pick Hidden</div>
-                      <div className="pick-type blurred">Bet Type</div>
+                {play.imageBase64 ? (
+                  <div className="play-image-wrap play-image-locked-wrap">
+                    <img src={play.imageBase64} className="play-image play-image-blurred" alt="Pick hidden" />
+                    <div className="play-image-overlay">
+                      <span className="lock-icon">🔒</span>
                     </div>
-                    <div className="pick-odds blurred">-000</div>
                   </div>
-                </div>
+                ) : (
+                  <div className="pick-card pick-card-locked">
+                    <div className="pick-matchup blurred">Matchup Hidden</div>
+                    <div className="pick-row">
+                      <div>
+                        <div className="pick-name blurred">Pick Hidden</div>
+                        <div className="pick-type blurred">Bet Type</div>
+                      </div>
+                      <div className="pick-odds blurred">-000</div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="lock-content">
-                  <div className="lock-icon-wrap">
-                    <span className="lock-icon">🔒</span>
-                    <div className="lock-ring" />
-                    <div className="lock-ring lock-ring-2" />
-                  </div>
                   <h2 className="lock-title">This Play Is Locked</h2>
                   <p className="lock-desc">
                     Unlock today&apos;s highest-conviction pick before game time.
@@ -424,7 +423,9 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                       <><br /><strong>Only {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)} left.</strong></>
                     )}
                   </p>
+                </div>
 
+                <div className="lock-btn-section">
                   <a
                     href={checkoutUrl}
                     target="_blank"
@@ -432,7 +433,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                     className="unlock-btn"
                   >
                     <span className="unlock-btn-text">
-                      Unlock Now — $49.99
+                      Unlock Now — $24.99
                     </span>
                     <span className="unlock-btn-sub">One-time purchase</span>
                   </a>
@@ -511,7 +512,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                     <span className="payout-locked-amount">${calcPayout(betAmount, play.odds!).total.toFixed(2)}</span>
                     <p className="payout-locked-sub">Unlock to see the pick and your exact payout</p>
                     <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="payout-unlock-btn">
-                      Unlock Now — $49.99
+                      Unlock Now — $24.99
                     </a>
                   </div>
                 )}
@@ -782,16 +783,24 @@ const styles = `
   font-family:'Oswald',sans-serif;font-weight:700;font-size:12px;
   letter-spacing:2px;color:#4ade80;
 }
+.play-image-wrap{border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid var(--border)}
 .play-image{width:100%;display:block}
 
 /* Locked — FOMO */
 .play-locked{position:relative;overflow:hidden}
-.blur-container{position:relative;width:100%;min-height:300px}
+.play-image-locked-wrap{position:relative;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid var(--border)}
 .play-image-blurred{
   width:100%;display:block;
   filter:blur(28px) brightness(.7) saturate(.5);
   transform:scale(1.08);
 }
+.play-image-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,.2) 0%,rgba(0,0,0,.5) 50%,rgba(0,0,0,.7) 100%);
+  display:flex;align-items:center;justify-content:center;
+}
+.play-image-overlay .lock-icon{font-size:48px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
+.blur-container{position:relative;width:100%;min-height:300px}
 .blur-overlay{
   position:absolute;inset:0;
   background:linear-gradient(180deg,
@@ -802,10 +811,10 @@ const styles = `
 }
 
 .lock-content{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:30px 24px;text-align:center;
+  text-align:center;
+  padding:28px 24px 16px;
 }
+.lock-btn-section{text-align:center;padding:0 20px 32px}
 
 .lock-icon-wrap{position:relative;margin-bottom:16px}
 .lock-icon{font-size:36px;position:relative;z-index:2}
