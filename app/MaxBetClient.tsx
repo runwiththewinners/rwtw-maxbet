@@ -79,10 +79,17 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl }: 
         <div className="mbp-content">
           {/* Header */}
           <header className="mbp-hero">
-            <div className="live-badge">
-              <span className="live-dot" />
-              Today&apos;s Play Is Live
-            </div>
+            {play ? (
+              <div className="live-badge">
+                <span className="live-dot" />
+                Today&apos;s Play Is Live
+              </div>
+            ) : !loading ? (
+              <div className="waiting-badge">
+                <span className="waiting-dot" />
+                Waiting For Today&apos;s Play
+              </div>
+            ) : null}
             <h1 className="mbp-title">
               Max Bet<br />
               <span className="gold">Play of the Day</span>
@@ -296,6 +303,17 @@ const styles = `
 .live-dot{
   width:7px;height:7px;border-radius:50%;background:#4ade80;
   box-shadow:0 0 12px #4ade80;animation:pulse 1.5s ease-in-out infinite;
+}
+.waiting-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 18px;border-radius:100px;
+  border:1px solid rgba(212,168,67,.2);background:rgba(212,168,67,.06);
+  font-size:10.5px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+  color:var(--gold);margin-bottom:28px;animation:fadeUp .6s ease both;
+}
+.waiting-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 12px var(--gold);animation:pulse 1.5s ease-in-out infinite;
 }
 .mbp-title{
   font-family:'Bebas Neue','Oswald',sans-serif;
