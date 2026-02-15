@@ -67,6 +67,33 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   const [adminLoading, setAdminLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [betAmount, setBetAmount] = useState(100);
+  const [scanning, setScanning] = useState(false);
+
+  const handleScanSlip = async () => {
+    if (!adminImage) { setAdminStatus("Upload an image first"); return; }
+    if (!adminSecret) { setAdminStatus("Enter admin secret"); return; }
+    setScanning(true);
+    setAdminStatus("Scanning bet slip with AI...");
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret },
+        body: JSON.stringify({ imageBase64: adminImage }),
+      });
+      if (res.ok) {
+        const { data } = await res.json();
+        if (data.title) setAdminTitle(data.title);
+        if (data.odds) setAdminOdds(data.odds);
+        if (data.gameTime) setAdminGameTime(data.gameTime);
+        if (data.description) setAdminDescription(data.description);
+        setAdminStatus("Scan complete — review and post!");
+      } else {
+        const err = await res.json();
+        setAdminStatus("Scan error: " + err.error);
+      }
+    } catch { setAdminStatus("Scan failed"); }
+    setScanning(false);
+  };
 
   const handleAdminImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -511,6 +538,20 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   </div>
 
                   <div className="admin-field">
+                    <label>Bet Slip Image</label>
+                    <input type="file" accept="image/*" onChange={handleAdminImage} />
+                    {adminImagePreview && <img src={adminImagePreview} alt="Preview" className="admin-preview" />}
+                  </div>
+
+                  {adminImagePreview && (
+                    <button className="admin-scan-btn" onClick={handleScanSlip} disabled={scanning}>
+                      {scanning ? "🔍 Scanning..." : "🤖 Scan Slip with AI"}
+                    </button>
+                  )}
+
+                  <div className="admin-divider" />
+
+                  <div className="admin-field">
                     <label>Play Title</label>
                     <input type="text" value={adminTitle} onChange={(e) => setAdminTitle(e.target.value)} />
                   </div>
@@ -523,12 +564,6 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   <div className="admin-field">
                     <label>Odds (e.g. -110, +150)</label>
                     <input type="text" value={adminOdds} onChange={(e) => setAdminOdds(e.target.value)} placeholder="-110" />
-                  </div>
-
-                  <div className="admin-field">
-                    <label>Bet Slip Image</label>
-                    <input type="file" accept="image/*" onChange={handleAdminImage} />
-                    {adminImagePreview && <img src={adminImagePreview} alt="Preview" className="admin-preview" />}
                   </div>
 
                   <div className="admin-field">
@@ -551,7 +586,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   </button>
 
                   {adminStatus && (
-                    <p className={`admin-status${adminStatus.startsWith("Error") || adminStatus.includes("failed") ? " err" : ""}`}>
+                    <p className={`admin-status${adminStatus.startsWith("Error") || adminStatus.includes("failed") || adminStatus.includes("error") ? " err" : ""}`}>
                       {adminStatus}
                     </p>
                   )}
@@ -966,4 +1001,14 @@ const styles = `
 .admin-delete-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .admin-status{margin-top:10px;font-size:12px;text-align:center;color:#4ade80}
 .admin-status.err{color:#ef4444}
+.admin-scan-btn{
+  width:100%;padding:12px;border-radius:10px;margin-bottom:14px;
+  border:1px solid rgba(78,168,246,.3);background:rgba(78,168,246,.08);
+  color:var(--blue);font-family:'Oswald',sans-serif;font-weight:600;
+  font-size:13px;letter-spacing:2px;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;
+}
+.admin-scan-btn:hover{background:rgba(78,168,246,.15);transform:scale(1.02)}
+.admin-scan-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.admin-divider{height:1px;background:var(--border);margin:14px 0}
 `;
