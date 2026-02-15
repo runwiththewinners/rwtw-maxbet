@@ -14,6 +14,7 @@ interface PlayData {
   gameTime: string;
   title: string;
   updatedAt: string;
+  description?: string;
 }
 
 export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, isAdmin }: Props) {
@@ -30,6 +31,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
   const [adminImage, setAdminImage] = useState<string | null>(null);
   const [adminImagePreview, setAdminImagePreview] = useState<string | null>(null);
   const [adminSecret, setAdminSecret] = useState("");
+  const [adminDescription, setAdminDescription] = useState("");
   const [adminStatus, setAdminStatus] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -68,7 +70,7 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
       const res = await fetch("/api/play", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret },
-        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle }),
+        body: JSON.stringify({ imageBase64: adminImage, gameTime: adminGameTime, title: adminTitle, description: adminDescription }),
       });
       if (res.ok) {
         setAdminStatus("Play uploaded!");
@@ -266,6 +268,12 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                   alt="Max Bet Play"
                   className="play-image"
                 />
+                {play.description && (
+                  <div className="play-breakdown">
+                    <h4 className="breakdown-title">Why We Love This Play</h4>
+                    <p className="breakdown-text">{play.description}</p>
+                  </div>
+                )}
               </div>
             ) : (
               /* LOCKED — FOMO MODE */
@@ -364,6 +372,17 @@ export default function MaxBetClient({ hasAccess, authenticated, checkoutUrl, is
                     <label>Bet Slip Image</label>
                     <input type="file" accept="image/*" onChange={handleAdminImage} />
                     {adminImagePreview && <img src={adminImagePreview} alt="Preview" className="admin-preview" />}
+                  </div>
+
+                  <div className="admin-field">
+                    <label>Play Description (visible to members only)</label>
+                    <textarea
+                      className="admin-textarea"
+                      value={adminDescription}
+                      onChange={(e) => setAdminDescription(e.target.value)}
+                      placeholder="Why we love this play..."
+                      rows={4}
+                    />
                   </div>
 
                   <button className="admin-upload-btn" onClick={handleAdminUpload} disabled={adminLoading}>
@@ -673,6 +692,22 @@ const styles = `
 .admin-field input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--glass);color:var(--txt);font-family:inherit;font-size:13px}
 .admin-field input:focus{outline:none;border-color:var(--gold)}
 .admin-preview{max-width:100%;border-radius:8px;margin-top:8px}
+.admin-textarea{
+  width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);
+  background:var(--glass);color:var(--txt);font-family:inherit;font-size:13px;
+  resize:vertical;line-height:1.6;
+}
+.admin-textarea:focus{outline:none;border-color:var(--gold)}
+.play-breakdown{
+  padding:20px;border-top:1px solid var(--border);
+}
+.breakdown-title{
+  font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--gold);margin-bottom:10px;
+}
+.breakdown-text{
+  font-size:14px;color:var(--txt2);line-height:1.7;white-space:pre-wrap;
+}
 .admin-upload-btn{
   width:100%;padding:12px;border-radius:10px;border:none;
   background:linear-gradient(135deg,var(--fire),#c23a1a);color:#fff;

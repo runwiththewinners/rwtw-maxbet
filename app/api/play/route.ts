@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { imageBase64, gameTime, title } = body;
+    const { imageBase64, gameTime, title, description } = body;
 
     if (!imageBase64 || !gameTime) {
       return NextResponse.json(
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       imageBase64,
       gameTime,
       title: title || "Max Bet Play of the Day",
+      description: description || "",
       updatedAt: new Date().toISOString(),
     };
 
